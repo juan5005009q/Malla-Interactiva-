@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Malla Curricular Psicología</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #ffe6f0;
+      color: #4a4a4a;
+      margin: 0;
+      padding: 2em;
+    }
+    h1 {
+      text-align: center;
+      color: #d63384;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(10, 1fr);
+      gap: 10px;
+    }
+    .semester {
+      background: #fff0f5;
+      padding: 10px;
+      border-radius: 8px;
+      box-shadow: 2px 2px 5px #ccc;
+    }
+    .semester h2 {
+      text-align: center;
+      color: #c2185b;
+    }
+    .subject {
+      background: #fce4ec;
+      border: 1px solid #f8bbd0;
+      border-radius: 5px;
+      padding: 8px;
+      margin: 5px 0;
+      text-align: center;
+      cursor: pointer;
+      position: relative;
+    }
+    .subject.locked {
+      background-color: #f8bbd0;
+      color: #999;
+      cursor: not-allowed;
+    }
+    .subject.locked::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: #fff;
+      color: #333;
+      border: 1px solid #ccc;
+      padding: 5px;
+      border-radius: 5px;
+      white-space: nowrap;
+      font-size: 12px;
+      display: none;
+    }
+    .subject.locked:hover::after {
+      display: block;
+    }
+
+    .modal {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.5);
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-content {
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      max-width: 300px;
+      width: 100%;
+    }
+
+    input[type="number"] {
+      width: 60px;
+      margin: 4px;
+    }
+
+    button {
+      background: #d63384;
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Malla Curricular - Psicología (CBC)</h1>
+  <div class="grid" id="malla">
+    <!-- Semestres y materias se generan dinámicamente -->
+  </div>
+
+  <!-- Modal -->
+  <div class="modal" id="modal">
+    <div class="modal-content">
+      <h3>Ingrese las notas</h3>
+      <label>Nota 1: <input type="number" min="0" max="5" id="nota1"></label><br>
+      <label>Nota 2: <input type="number" min="0" max="5" id="nota2"></label><br>
+      <label>Nota 3: <input type="number" min="0" max="5" id="nota3"></label><br>
+      <label>Porcentaje: <input type="number" min="0" max="100" id="porcentaje"></label><br>
+      <button onclick="guardarNota()">Guardar</button>
+    </div>
+  </div>
+
+  <script>
+    const materias = [
+      // Semestre 1
+      { id: 'cbc1', nombre: 'Introducción a la Psicología', semestre: 1, requisitos: [] },
+      { id: 'cbc2', nombre: 'Biología', semestre: 1, requisitos: [] },
+      // Semestre 2
+      { id: 'cbc3', nombre: 'Psicología del Desarrollo', semestre: 2, requisitos: ['cbc1'] },
+      { id: 'cbc4', nombre: 'Neurociencia', semestre: 2, requisitos: ['cbc2'] },
+      // Semestre 3
+      { id: 'cbc5', nombre: 'Psicopatología', semestre: 3, requisitos: ['cbc3'] },
+      { id: 'cbc6', nombre: 'Métodos de Investigación', semestre: 3, requisitos: ['cbc4'] },
+    ];
+
+    const aprobadas = JSON.parse(localStorage.getItem('aprobadas')) || [];
+
+    function crearMalla() {
+      const grid = document.getElementById('malla');
+      for (let i = 1; i <= 10; i++) {
+        const col = document.createElement('div');
+        col.className = 'semester';
+        col.innerHTML = `<h2>Semestre ${i}</h2>`;
+        materias.filter(m => m.semestre === i).forEach(m => {
+          const div = document.createElement('div');
+          div.className = 'subject';
+          div.id = m.id;
+          div.textContent = m.nombre;
+          div.onclick = () => seleccionarMateria(m.id);
+          col.appendChild(div);
+        });
+        grid.appendChild(col);
+      }
+      actualizarEstadoMaterias();
+    }
+
+    function actualizarEstadoMaterias() {
+      materias.forEach(m => {
+        const el = document.getElementById(m.id);
+        if (aprobadas.includes(m.id)) {
+          el.style.backgroundColor = '#c8e6c9';
+          el.style.color = '#2e7d32';
+          el.textContent = m.nombre + ' ✅';
+        } else if (!m.requisitos.every(r => aprobadas.includes(r))) {
+          el.classList.add('locked');
+          el.setAttribute('data-tooltip', 'Falta aprobar: ' + m.requisitos.filter(r => !aprobadas.includes(r)).join(', '));
+          el.onclick = null;
+        } else {
+          el.classList.remove('locked');
+          el.removeAttribute('data-tooltip');
+          el.onclick = () => seleccionarMateria(m.id);
+        }
+      });
+    }
+
+    let materiaSeleccionada = null;
+
+    function seleccionarMateria(id) {
+      materiaSeleccionada = id;
+      document.getElementById('modal').style.display = 'flex';
+    }
+
+    function guardarNota() {
+      const n1 = parseFloat(document.getElementById('nota1').value);
+      const n2 = parseFloat(document.getElementById('nota2').value);
+      const n3 = parseFloat(document.getElementById('nota3').value);
+      const p = parseFloat(document.getElementById('porcentaje').value);
+
+      if ([n1, n2, n3, p].some(isNaN)) {
+        alert('Por favor ingresa todas las notas y el porcentaje.');
+        return;
+      }
+
+      const promedio = (n1 + n2 + n3) / 3;
+      if (promedio >= 3 && p >= 60) {
+        alert('¡Felicidades! Aprobaste ' + getNombreMateria(materiaSeleccionada));
+        aprobadas.push(materiaSeleccionada);
+        localStorage.setItem('aprobadas', JSON.stringify(aprobadas));
+        actualizarEstadoMaterias();
+      } else {
+        alert('No se alcanzó el mínimo para aprobar.');
+      }
+      document.getElementById('modal').style.display = 'none';
+    }
+
+    function getNombreMateria(id) {
+      const m = materias.find(m => m.id === id);
+      return m ? m.nombre : '';
+    }
+
+    window.onload = crearMalla;
+  </script>
+</body>
+</html>
